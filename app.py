@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
+import sys
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://evemwangi:Nima900##@localhost:5432/todoapp'
@@ -32,25 +33,44 @@ def create_todo(): # == ROUTE HANDLER
     #fetch the data submitted by the user, add an empty string as a default
     # description_input = request.form.get('description', '')
 
-    # use below line to replace above form get, to now get the JSOn that comes back from our AJAX request
-    description_input = request.get_json()['description'] # gets the json body sent to it from index.html ==> body: JSON.stringify.... returns a dictionary, with key description
+    error = False
+    body = {} #empty dictionary == will hold our return data, that can persist after session.close() is called
 
-    #use the description received above to create a new Todo objet
-    todo = Todo(description=description_input)
-    # add the todo object to a db session == pending change, not yet commited
-    db.session.add(todo)
-    # commit the change
-    db.session.commit()
-    # next, tell the controller what to render to the user after committing a new record to the DB
-    # in this case, we want to redirect to the index route and show the index.html page, with a fresh grab of all the new DB table values
-    # import redirect and urslfor
-    # default return ### == return redirect(url_for('index')) # index == name of our route handler that listens to changes on the index route. allows for a page refresh every time you create a todo
-    # OR
-    # return render_template('index.html', data=Todo.query.all())
-    # OR return below if USING AJAX ==> we want to return a jsonobject that includes the new description
-    return jsonify({ #returns json data to the client
-        'description':todo.description # add description from todo onject
-    })
+    try:
+        # use below line to replace above form get, to now get the JSOn that comes back from our AJAX request
+        description_input = request.get_json()['description'] # gets the json body sent to it from index.html ==> body: JSON.stringify.... returns a dictionary, with key description
+
+        #use the description received above to create a new Todo objet
+        todo = Todo(description=description_input)
+        # add the todo object to a db session == pending change, not yet commited
+        db.session.add(todo)
+        # commit the change
+        db.session.commit()
+        # next, tell the controller what to render to the user after committing a new record to the DB
+        # in this case, we want to redirect to the index route and show the index.html page, with a fresh grab of all the new DB table values
+        body['description'] = todo.description
+    except:
+        error = True
+        db.session.rollback()
+        print(sys.exc_info())
+    finally:
+        db.session.close() # close connection before return statement
+    if error:
+        abort(500) #invoked in case of a databse error
+    else:
+        # import redirect and urslfor
+        # default return ### == return redirect(url_for('index')) # index == name of our route handler that listens to changes on the index route. allows for a page refresh every time you create a todo
+        # OR
+        # return render_template('index.html', data=Todo.query.all())
+        # OR return below if USING AJAX ==> we want to return a jsonobject that includes the new description
+        # below brings an error because we are trying to still use an object (todo) after closing the session it was using
+        """
+        return jsonify({ #returns json data to the client
+            'description':todo.description # add description from todo onject
+        })
+        """
+        #instead implement it as below
+        return jsonify(body)
 
 """
 THIS ONE HAD DUMMY DATA
