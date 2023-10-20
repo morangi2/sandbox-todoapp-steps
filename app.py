@@ -52,9 +52,6 @@ def create_todo(): # == ROUTE HANDLER
         'description':todo.description # add description from todo onject
     })
 
-
-
-
 """
 THIS ONE HAD DUMMY DATA
 def index():
