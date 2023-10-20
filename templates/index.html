@@ -1,0 +1,62 @@
+<html>
+    <head>
+        <title> MJs Todo APP</title>
+        <style>
+            .hidden {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <form id="form">
+            <input type="text" id="description" name="description" />
+            <input type="submit" value="Create" />
+        </form>
+
+        <!-- specify an error message below-->
+        <div id="error" class="hidden"> Something went WRONG! </div>
+        <!-- under the HEAD tag, specify hidden under style... instead of adding a tag on line above as style = "display:hidden"-->
+
+        <ul id="todos">
+            {% for d in data %} 
+            <li> {{ d.description }}</li>
+            {% endfor %}
+        </ul>
+
+        <script>
+            document.getElementById('form').onsubmit = function(e) {
+                //to prevent default behaviour which is refreshing the page
+                e.preventDefault(); 
+                // remove this from the form tag since we dont want the default behaviour; method="post" action="/todos/create"
+                fetch('/todos/create', { // fetch is a PROMISE_based library
+                    method: 'POST',
+                    body: JSON.stringify({
+                        'description': document.getElementById('description').value
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json' //since we are parsing a json file
+                    }
+                })
+                .then(function(response){ //return a json response
+                    return response.json();
+                })
+                .then(function(jsonResponse){ //log the json response on the console
+                    console.log(jsonResponse);
+                    //now append that element to our list under the ul tag above 1) create the element 2) specify inner html of the li tag
+                    const liItem = document.createElement('LI');
+                    liItem.innerHTML = jsonResponse['description'];
+                    document.getElementById('todos').appendChild(liItem);
+                    //add below if the transaction succeeded to ensure the error message is not displayed
+                    document.getElementById('error').className = 'hidden';
+                })
+                // append a catch handler just in case the above doesnt work
+                .catch(function(){
+                    // specify an error message above our list if sth goes wrong  (after form, before UL)
+                    document.getElementById('error').className = ''; //remove the hidden style tag and displays the error
+                })
+            }
+        </script>
+        <!-- 1) we send the POST request 2) then it returns a json, then 3) we use that json response to append a child-->
+    </body>
+</html>
+
