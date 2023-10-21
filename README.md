@@ -3,9 +3,18 @@ MVC Model, CRUD implementations, POST vs GET, using AJAX fetch, definiting sever
 
 ## Some notes as we go along with this development
 ### notes about using JINJA in index.html
-    <!-- use a Jinja for loop to iterate through and display a DATA list, then have it print the description attribute-->
-    <!-- {% %} how to start and end a string block in Jinja-->
-    <!-- {{ ... }} how to start and end a print statement-->
+1. <!-- use a Jinja for loop to iterate through and display a DATA list, then have it print the description attribute-->
+2. <!-- {% %} how to start and end a string block in Jinja-->
+3. <!-- {{ ... }} how to start and end a print statement-->
+4. ==> Jinja is a templating engine in Flask
+#### If-statements in Jinja
+{% if todo.completed %}
+<ul>
+{% for user in users %}
+    <li>{{ user.completed|e }}</li>
+{% endfor %}
+</ul>
+{% enfif %}
 
 ### notes about the 3 ways of getting user data in FLASK
 Method 1: URL Query params ==> /foo?field1=value1 ==> value1 = request.args.get('field1')
@@ -22,3 +31,7 @@ AIM: show updated todo list after hitting the CREATE button without refreshing t
    the script will; 1) we send the POST request 2) then it returns a json, then 3) we use that json response to append a child
 2. Add a CATCH block to catch any errors; via a div , with a hidden class, define the hidden attributes under style in head tag
 3. On the controller (in app.py); update --> request.form.get('description', '') to --> request.get_json()['key'] AND return json data (via jsonify)
+
+### U in CRUD -- Update
+- add check boxes next to do items and update its status true/false
+- 

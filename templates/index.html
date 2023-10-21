@@ -5,33 +5,120 @@
             .hidden {
                 display: none;
             }
+            ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                width: 300px;
+            }
+            li {
+                clear: both;
+            }
+            li button {
+                -webkit-appearance: none;
+                border: none;
+                outline: none;
+                color: red;
+                float: right;
+                cursor: pointer;
+                font-size: 20px;
+            }
+            .lists-wrapper, .todos-wrapper {
+                display: inline-block;
+                vertical-align: top;
+            }
         </style>
     </head>
     <body>
-        <form id="form">
-            <input type="text" id="description" name="description" />
-            <input type="submit" value="Create" />
-        </form>
+        <div class="lists-wrapper">
+            <ul id="lists">
+                {% for list in lists %}
+                <li>
+                    <a href="/lists/{{ list.id}}"> <!-- to toggle between the list of lists and display their respective todos-->
+                        {{ list.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
 
-        <!-- specify an error message below-->
-        <div id="error" class="hidden"> Something went WRONG! </div>
-        <!-- under the HEAD tag, specify hidden under style... instead of adding a tag on line above as style = "display:hidden"-->
-
-        <ul id="todos">
-            {% for d in data %} 
-            <li> {{ d.description }}</li>
-            {% endfor %}
-        </ul>
+        <div class="todos-wrapper">
+            <h4>{{ active_list.name }}</h4>
+            <form id="form">
+                <input type="text" id="description" name="description" />
+                <input type="submit" value="Create" />
+            </form>
+            <!-- specify an error message below-->
+            <div id="error" class="hidden"> Something went WRONG! </div>
+            <!-- under the HEAD tag, specify hidden under style... instead of adding a tag on line above as style = "display:hidden"-->
+            <ul id="todos">
+                {% for todo in todos %}
+                <li>
+                    <input class="check-completed" data-id="{{ todo.id }}" type="checkbox" {% if todo.completed %} checked {% endif %} /> 
+                    {{ todo.description }}
+                    <button class="delete-button" data-id="{{ todo.id }}">&cross;</button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
 
         <script>
+            const deleteBtns = document.querySelectorAll('.delete-button');
+            for (let m = 0; m < deleteBtns.length; m++) {
+                const btn = deleteBtns[m];
+                btn.onclick = function(e) {
+                    const todoId = e.target.dataset['id'];
+                    fetch('/todos/' + todoId, {
+                        method: 'DELETE'
+                    })
+                    .then(function(){
+                        const item = e.target.parentElement;
+                        item.remove();
+                    })
+                }
+            }
+
+            // script below is to loop through the checked items and POST an UPDATE request... listens to check requests
+            const checkboxes = document.querySelectorAll('.check-completed');
+            for (let i = 0; i < checkboxes.length; i++) {
+                // loops over every checkbox
+                const checkbox = checkboxes[i];
+                checkbox.onchange = function(e) {
+                   console.log('todo checkedd', e);
+                   const newCompleted = e.target.checked;
+                   const todoId = e.target.dataset['id'];
+                   fetch('/todos/' + todoId + '/set-completed', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        'completed': newCompleted
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                   })
+                   .then(function() {
+                        document.getElementById('error').className = 'hidden';
+                   })
+                   .catch(function() {
+                        document.getElementById('error').className = ''
+                   })
+                }
+            }
+
+            const descInput = document.getElementById('description');
             document.getElementById('form').onsubmit = function(e) {
                 //to prevent default behaviour which is refreshing the page
-                e.preventDefault(); 
-                // remove this from the form tag since we dont want the default behaviour; method="post" action="/todos/create"
+                e.preventDefault(); // remove this from the form tag since we dont want the default behaviour; method="post" action="/todos/create"
+
+                const desc = descInput.value;
+                const list_id_var = '{{ active_list.id }}';
+                descInput.value = '';
+
                 fetch('/todos/create', { // fetch is a PROMISE_based library
                     method: 'POST',
                     body: JSON.stringify({
-                        'description': document.getElementById('description').value
+                        'description': desc,
+                        'list_id': list_id_var
                     }),
                     headers: {
                         'Content-Type': 'application/json' //since we are parsing a json file
@@ -43,8 +130,22 @@
                 .then(function(jsonResponse){ //log the json response on the console
                     console.log(jsonResponse);
                     //now append that element to our list under the ul tag above 1) create the element 2) specify inner html of the li tag
-                    const liItem = document.createElement('LI');
-                    liItem.innerHTML = jsonResponse['description'];
+                    const liItem = document.createElement('li');
+                    const checkbox = document.createElement('input');
+                    checkbox.className = 'check-completed';
+                    checkbox.type = 'checkbox';
+                    checkbox.setAttribute('data-id', jsonResponse.id);
+                    liItem.appendChild(checkbox);
+
+                    const text = document.createTextNode(' ' + jsonResponse.description);
+                    liItem.appendChild(text);
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-button';
+                    deleteBtn.setAttribute('data-id', jsonResponse.id);
+                    deleteBtn.innerHTML = '&cross;';
+                    liItem.appendChild(deleteBtn);
+
                     document.getElementById('todos').appendChild(liItem);
                     //add below if the transaction succeeded to ensure the error message is not displayed
                     document.getElementById('error').className = 'hidden';
@@ -52,8 +153,9 @@
                 // append a catch handler just in case the above doesnt work
                 .catch(function(){
                     // specify an error message above our list if sth goes wrong  (after form, before UL)
+                    console.error('ERROR Ocurred');
                     document.getElementById('error').className = ''; //remove the hidden style tag and displays the error
-                })
+                });
             }
         </script>
         <!-- 1) we send the POST request 2) then it returns a json, then 3) we use that json response to append a child-->
