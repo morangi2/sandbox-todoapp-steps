@@ -9,7 +9,7 @@
                 list-style: none;
                 padding: 0;
                 margin: 0;
-                width: 300px;
+                width: 250px;
             }
             li {
                 clear: both;
@@ -31,25 +31,37 @@
     </head>
     <body>
         <div class="lists-wrapper">
+            <h4>TODO LISTS</h4>
+            <form action="/lists/create" method="POST" id="form_lists">
+                <label for="new_list">Create List:</label>
+                <input type="text" id="new_list_input" name="new_list" placeholder="A new list" />
+                <input type="submit" value="Create List" />
+            </form>
+            <!-- Specify the error message div-->
+            <div id="error" class="hidden"> Something went WRONG - todo lists! </div>
             <ul id="lists">
                 {% for list in lists %}
                 <li>
+                    <input class="check-completed-list" data-id="{{ list.id }}" type="checkbox" {% if list.completed %} checked {% endif %} />
                     <a href="/lists/{{ list.id}}"> <!-- to toggle between the list of lists and display their respective todos-->
                         {{ list.name }}
                     </a>
+                    <button class="delete-button-list" data-id="{{ list.id }}">&cross;</button>
                 </li>
                 {% endfor %}
             </ul>
         </div>
 
         <div class="todos-wrapper">
-            <h4>{{ active_list.name }}</h4>
-            <form id="form">
-                <input type="text" id="description" name="description" />
-                <input type="submit" value="Create" />
+            <h4>TODO ITEMS</h4>
+            <form action="/todos/create" method="POST" id="form_items">
+                <label for="description" > Create Task:</label>
+                <input type="text" id="description" name="description" placeholder="Task description" />
+                <input type="submit" value="Create Task" />
             </form>
+            <h4>{{ active_list.name }}</h4>
             <!-- specify an error message below-->
-            <div id="error" class="hidden"> Something went WRONG! </div>
+            <div id="error" class="hidden"> Something went WRONG - todo items! </div>
             <!-- under the HEAD tag, specify hidden under style... instead of adding a tag on line above as style = "display:hidden"-->
             <ul id="todos">
                 {% for todo in todos %}
@@ -74,7 +86,35 @@
                     .then(function(){
                         const item = e.target.parentElement;
                         item.remove();
+                        document.getElementById('error').className = 'hidden';
                     })
+                    .catch(function(e){
+                        document.getElementById('error').className = '';
+                    });
+                }
+            }
+
+            const deleteListBtns = document.querySelectorAll('.delete-button-list');
+            for(let l = 0; l < deleteListBtns.length; l++) {
+                const deletelbtn = deleteListBtns[l];
+                deletelbtn.onclick = function(e){
+                    console.log("DElete EVent: ", e);
+                    const listID = e.target.dataset.id;
+
+                    fetch('/lists/' + listID + '/delete', {
+                        method: 'DELETE'
+                    })
+                    .then(function(){
+                        console.log('Parent is?', e.target);
+                        const item = e.target.parentElement;
+                        item.remove();
+                        document.getElementById('error').className = 'hidden';
+                        window.location.reload(true);
+                    })
+                    .catch(function(e){
+                        console.error(e);
+                        document.getElementById('error').className = '';
+                    });
                 }
             }
 
@@ -105,8 +145,70 @@
                 }
             }
 
+            const list_checkboxes = document.querySelectorAll('.check-completed-list')
+            // loop through the list of checkboxes that have been checked
+            for (let c = 0; c < list_checkboxes.length; c++){
+                const checkedlist = list_checkboxes[c]
+
+                checkedlist.onchange = function(e) {
+                    console.log('listt checked', e);
+
+                    if(e.target.checked) {
+                        const listId = e.target.dataset['id'];
+                        fetch('/lists/' + listId + '/set-completed', {
+                            method: 'POST',
+                            // body: no need to pass body since we are not updating the DB 
+                            headers: {
+                            'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(function(jsonResponse){
+                            document.getElementById('error').className = 'hidden';
+
+                            // loop through each todo item in this list and mark it as completed
+                            const todocheckboxes = document.querySelectorAll('.check-completed');
+                            for (let todocb = 0; todocb < todocheckboxes.length; todocb++){
+                                const checkbox = todocheckboxes[todocb];
+                                checkbox.checked = true;
+                            }
+                        })
+                        .catch(function() {
+                            document.getElementById('error').className = '';
+                        })
+                    }
+                }
+            }
+
+            document.getElementById('form_lists').onsubmit = function(e){
+                e.preventDefault();
+
+                fetch('/lists/create', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        'name': document.getElementById('new_list_input').value
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(function(response){
+                    return response.json();
+                })
+                .then(function(jsonResponse){
+                    console.log(jsonResponse)
+                    const listItem = document.createElement('LI');
+                    listItem.innerHTML = jsonResponse['name'];
+                    document.getElementById('lists').appendChild(listItem);
+                    document.getElementById('error').className = 'hidden';
+                    window.location.reload(true);
+                })
+                .catch(function(err){
+                    document.getElementById('error').className = '';
+                })
+            }
+
             const descInput = document.getElementById('description');
-            document.getElementById('form').onsubmit = function(e) {
+            document.getElementById('form_items').onsubmit = function(e) {
                 //to prevent default behaviour which is refreshing the page
                 e.preventDefault(); // remove this from the form tag since we dont want the default behaviour; method="post" action="/todos/create"
 

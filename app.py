@@ -79,6 +79,29 @@ def create_todo(): # == ROUTE HANDLER
         #instead implement it as below
         return jsonify(body)
 
+# Route handler for CREATING new lists
+@app.route('/lists/create', methods=['POST'])
+def create_list():
+    error = False
+    body = {}
+
+    try:
+        listname_input = request.get_json()['name']
+        todolist = TodoList(name = listname_input)
+        db.session.add(todolist)
+        db.session.commit()
+        body['id'] = todolist.id
+        body['name'] = todolist.name
+    except:
+        error = True
+        db.session.rollback()
+        print(sys.exc_info())
+    finally:
+        db.session.close()
+    if error:
+        abort(500)
+    else:
+        return jsonify(body)
 
 @app.route('/todos/<delete_id>', methods=['DELETE'])
 def set_deleted_todo(delete_id):
@@ -92,6 +115,46 @@ def set_deleted_todo(delete_id):
     #return redirect(url_for('index'))
     return jsonify({'success': True})
 
+@app.route('/lists/<list_id>/delete', methods=['DELETE'])
+def delete_list(list_id):
+    error = False
+    try:
+        #delete the todos in that list
+        list = TodoList.query.get(list_id)
+        for todo in list.todos: #loop through the todo items in this particular list .. ps; todos is the foreign key
+            db.session.delete(todo)
+
+        db.session.delete(list)
+        db.session.commit()
+    except:
+        error = True
+        db.session.rollback()
+    finally:
+        db.session.close()
+    if error:
+        abort(500)
+    else:
+        return jsonify({'success deleting list': True})
+    
+@app.route('/lists/<list_id>/set-completed', methods=['POST'])
+def set_completed_list(list_id):
+    error = False
+    try:
+        todoList = TodoList.query.get(list_id)
+        for todo in todoList.todos:
+            todo.completed = True
+        
+        db.session.commit()
+    except:
+        error = True
+        db.session.rollback()
+        print(sys.exc_info())
+    finally:
+        db.session.close()
+    if error:
+        abort(500)
+    else:
+        return redirect(url_for('index'))
 
 @app.route('/todos/<todo_id>/set-completed', methods=['POST'])
 def set_completed_todo(todo_id):
